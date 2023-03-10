@@ -7,7 +7,7 @@ from envCleaner import EnvCleaner, EnvCleaner_onehot , EnvCleaner_oneimage
 
 if __name__ == '__main__':
     env = EnvCleaner_oneimage({"map_size":7,"seed":0,"N_agent":5,"partical_obs":2})
-    check_env(env)
+    #check_env(env)
     
     max_iter = 500
     num_env = 5

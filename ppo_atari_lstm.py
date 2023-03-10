@@ -109,8 +109,8 @@ def make_env(env_id, seed, idx, capture_video, run_name): #创建环境，需要
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
-    torch.nn.init.orthogonal_(layer.weight, std)
-    torch.nn.init.constant_(layer.bias, bias_const)
+    torch.nn.init.orthogonal_(layer.weight, std) #初始权重正交化
+    torch.nn.init.constant_(layer.bias, bias_const) #初始bias，常数初始化
     return layer
 
 
@@ -138,7 +138,7 @@ class Agent(nn.Module):
         self.critic = layer_init(nn.Linear(128, 1), std=1)
 
     def get_states(self, x, lstm_state, done):
-        hidden = self.network(x / 255.0)
+        hidden = self.network(x / 255.0) # 归一化并输入网络，得到特征向量
 
         # LSTM logic
         batch_size = lstm_state[0].shape[1]
