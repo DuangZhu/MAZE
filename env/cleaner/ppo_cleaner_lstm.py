@@ -47,9 +47,9 @@ def parse_args():
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="BreakoutNoFrameskip-v4",
         help="the id of the environment")
-    parser.add_argument("--total-timesteps", type=int, default=10000000,
+    parser.add_argument("--total-timesteps", type=int, default=10000100,
         help="total timesteps of the experiments")
-    parser.add_argument("--learning-rate", type=float, default=2.5e-4,
+    parser.add_argument("--learning-rate", type=float, default=2.5e-5,
         help="the learning rate of the optimizer")
     parser.add_argument("--num-envs", type=int, default=8,
         help="the number of parallel game environments")
@@ -85,9 +85,9 @@ def parse_args():
     # fmt: on
     return args
 
-def make_env(capture_video=False): #创建环境，需要环境具有以下的属性：
+def make_env(env_seed=0, capture_video=False): #创建环境，需要环境具有以下的属性：
     def thunk():
-        env = EnvCleaner_oneimage({"map_size":7,"seed":0,"N_agent":1,"partical_obs":3})
+        env = EnvCleaner_oneimage({"map_size":9,"seed":env_seed,"N_agent":1,"partical_obs":3})
         env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
@@ -96,6 +96,7 @@ def make_env(capture_video=False): #创建环境，需要环境具有以下的�
         env = ClipRewardEnv(env)
         return env
     return thunk
+
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std) #初始权重正交化
@@ -186,12 +187,18 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = args.torch_deterministic
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
-    env = EnvCleaner_oneimage({"map_size":7,"seed":0,"N_agent":1,"partical_obs":3})
+    print(device)
+    env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3})
     
     # env setup
-    envs = gym.vector.SyncVectorEnv(
-        [make_env() for i in range(args.num_envs)]
-    )
+    env_list = []
+    if len(env_list)==0:
+        envs = gym.vector.SyncVectorEnv(
+            [make_env() for i in range(args.num_envs)])
+    else:
+        envs = gym.vector.SyncVectorEnv(
+            [make_env(env_seed=env_list[i%len(env_list)]) for i in range(args.num_envs)])
+        
     
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
@@ -228,7 +235,8 @@ if __name__ == "__main__":
             global_step += 1 * args.num_envs
             obs[step] = next_obs
             dones[step] = next_done
-
+            if global_step % 1000000 == 0:
+                torch.save(agent.state_dict(), './runs/'+run_name+'/'+str(global_step)+'_params.pth')
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 action, logprob, _, value, next_lstm_state = agent.get_action_and_value(next_obs, next_lstm_state, next_done)
@@ -361,5 +369,9 @@ if __name__ == "__main__":
 
     envs.close()
     writer.close()
+    
 
+
+# # 加载模型参数
+# net.load_state_dict(torch.load('params.pth'))
 

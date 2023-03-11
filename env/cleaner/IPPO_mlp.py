@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from envCleaner import EnvCleaner_onehot
 from tqdm import tqdm
 
+
 class PolicyNet(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim, action_dim):
         super(PolicyNet, self).__init__()

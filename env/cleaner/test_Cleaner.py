@@ -1,12 +1,11 @@
 import random
 
 import gym
+from envCleaner import EnvCleaner, EnvCleaner_onehot, EnvCleaner_oneimage
 from stable_baselines3.common.env_checker import check_env
 
-from envCleaner import EnvCleaner, EnvCleaner_onehot , EnvCleaner_oneimage
-
 if __name__ == '__main__':
-    env = EnvCleaner_oneimage({"map_size":7,"seed":0,"N_agent":5,"partical_obs":2})
+    env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3})
     #check_env(env)
     
     max_iter = 500

@@ -2,12 +2,13 @@ import copy
 import random
 
 import cv2
+import gym
 import numpy as np
+from gym import logger, spaces
+from gym.utils import seeding
 
 import maze
-import gym
-from gym import spaces, logger
-from gym.utils import seeding
+
 
 class EnvCleaner_onehot(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -504,3 +505,4 @@ class EnvCleaner(gym.Env):
                     cv2.rectangle(new_obs, (i * enlarge, j * enlarge), (i * enlarge + enlarge, j * enlarge + enlarge), (0, 255, 0), -1)
         cv2.imshow('image', new_obs)
         cv2.waitKey(10)
+
