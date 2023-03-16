@@ -192,7 +192,7 @@ class EnvCleaner_oneimage(gym.Env):
         # self.state_space = spaces.Box(low=-1, high=1, shape=(state_size,), dtype="float32")
         # obs shape = id+pos+(self.partical_obs*2+1)*(self.partical_obs*2+1)
         self.observation_space = spaces.Box(low=0, high=1, shape=(self.N_agent,(self.partical_obs*2+1),(self.partical_obs*2+1)), dtype=np.float64) 
-        self.start_position = [[1,1]]
+        self.start_position = env_config["start_position"]
         self._action_meanings = ["NOOP", "UP", "DOWN", "LEFT", "RIGHT"]
         self.single_action_space = 5
         self.max_step = 200
@@ -326,18 +326,18 @@ class EnvCleaner_oneimage(gym.Env):
 
     def render(self):
         obs = self.get_global_obs()
-        enlarge = 5
+        enlarge = 50
         new_obs = np.ones((self.map_size*enlarge, self.map_size*enlarge, 3))
         for i in range(self.map_size):
             for j in range(self.map_size):
-                if obs[i][j][0] == 0.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
+                if obs[i][j][0] == 0.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 1.0:
                     cv2.rectangle(new_obs, (i * enlarge, j * enlarge), (i * enlarge + enlarge, j * enlarge + enlarge), (0, 0, 0), -1)
-                if obs[i][j][0] == 1.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
+                if obs[i][j][0] == 0.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.05:
                     cv2.rectangle(new_obs, (i * enlarge, j * enlarge), (i * enlarge + enlarge, j * enlarge + enlarge), (0, 0, 255), -1)
-                if obs[i][j][0] == 0.0 and obs[i][j][1] == 1.0 and obs[i][j][2] == 0.0:
+                if obs[i][j][0] == 1.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
                     cv2.rectangle(new_obs, (i * enlarge, j * enlarge), (i * enlarge + enlarge, j * enlarge + enlarge), (0, 255, 0), -1)
         cv2.imshow('image', new_obs)
-        cv2.waitKey(10)
+        cv2.waitKey(2)
 
 class EnvCleaner(gym.Env):
     metadata = {'render.modes': ['human']}

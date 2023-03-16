@@ -85,9 +85,9 @@ def parse_args():
     # fmt: on
     return args
 
-def make_env(env_seed=0, capture_video=False): #创建环境，需要环境具有以下的属性：
+def make_env(env_seed=0, capture_video=False,start_position=[[1,1]]): #创建环境，需要环境具有以下的属性：
     def thunk():
-        env = EnvCleaner_oneimage({"map_size":9,"seed":env_seed,"N_agent":1,"partical_obs":3})
+        env = EnvCleaner_oneimage({"map_size":9,"seed":env_seed,"N_agent":1,"partical_obs":3, "start_position":start_position})
         env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
@@ -189,16 +189,17 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
     print(device)
-    env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3})
+    env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3, "start_position":[[1,1]]})
     
     # env setup
     env_list = []
+    start_position=[[1,1]]
     if len(env_list)==0:
         envs = gym.vector.SyncVectorEnv(
-            [make_env() for i in range(args.num_envs)])
+            [make_env(start_position=start_position) for i in range(args.num_envs)])
     else:
         envs = gym.vector.SyncVectorEnv(
-            [make_env(env_seed=env_list[i%len(env_list)]) for i in range(args.num_envs)])
+            [make_env(env_seed=env_list[i%len(env_list)],start_position=start_position) for i in range(args.num_envs)])
         
     
     agent = Agent(envs).to(device)
