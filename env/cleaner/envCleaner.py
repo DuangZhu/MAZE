@@ -270,7 +270,7 @@ class EnvCleaner_oneimage(gym.Env):
         for i in range(len(action_list)):
                 per_obs = map[self.agt_pos_list[i][0]-1:self.agt_pos_list[i][0]+2*self.partical_obs,self.agt_pos_list[i][1]-1:self.agt_pos_list[i][1]+2*self.partical_obs]
                 obs.append(per_obs)
-                self.info["agent_info"].append([i,self.agt_pos_list[i][0],self.agt_pos_list[i][1]])
+                self.info["agent_info"].append([i/self.N_agent,self.agt_pos_list[i][0]/self.map_size,self.agt_pos_list[i][1]/self.map_size])
         # Calculate done
         if 2 not in self.occupancy:
             done = True

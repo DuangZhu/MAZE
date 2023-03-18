@@ -45,13 +45,13 @@ def parse_args():
         help="whether to capture videos of the agent performances (check out `videos` folder)")
 
     # Algorithm specific arguments
-    parser.add_argument("--env-id", type=str, default="BreakoutNoFrameskip-v4",
+    parser.add_argument("--env-id", type=str, default="100env",
         help="the id of the environment")
     parser.add_argument("--total-timesteps", type=int, default=30000100,
         help="total timesteps of the experiments")
     parser.add_argument("--learning-rate", type=float, default=5e-4,
         help="the learning rate of the optimizer")
-    parser.add_argument("--num-envs", type=int, default=24,
+    parser.add_argument("--num-envs", type=int, default=100,
         help="the number of parallel game environments")
     parser.add_argument("--num-steps", type=int, default=200,
         help="the number of steps to run in each environment per policy rollout")
@@ -115,10 +115,10 @@ class Agent(nn.Module):
             layer_init(nn.Conv2d(64, 64, 3, padding=1)),
             nn.ReLU(),
             nn.Flatten(),
-            layer_init(nn.Linear(64 * 7 * 7, 509)),
+            layer_init(nn.Linear(64 * 7 * 7, 512)),
             nn.ReLU(),
         )
-        self.lstm = nn.LSTM(509+3, 128)
+        self.lstm = nn.LSTM(512+3, 128)
         for name, param in self.lstm.named_parameters():
             if "bias" in name:
                 nn.init.constant_(param, 0)
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3, "start_position":[[1,1]]})
     
     # env setup
-    env_list = [1,2,3,4,5]
+    env_list = list(range(100))
     start_position=[[1,1]]
     if len(env_list)==0:
         envs = gym.vector.SyncVectorEnv(
@@ -217,8 +217,8 @@ if __name__ == "__main__":
     agent_id_poses = torch.zeros((args.num_steps, args.num_envs)+ (env.N_agent,3)).to(device)
     agent_id_pos = torch.zeros(env.N_agent,3).to(device)
     for i in range(env.N_agent):
-        agent_id_pos[i] = torch.tensor([i,start_position[i%len(start_position)][0],
-                                       start_position[i%len(start_position)][1]])
+        agent_id_pos[i] = torch.tensor([i/env.N_agent,start_position[i%len(start_position)][0]/env.map_size,
+                                       start_position[i%len(start_position)][1]/env.map_size])
     agent_id_pos = agent_id_pos.repeat(args.num_envs,1).view(args.num_envs,env.N_agent,3)    
     
     # TRY NOT TO MODIFY: start the game

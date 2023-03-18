@@ -17,7 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 from ppo_cleaner_lstm import Agent
 
 
-env = EnvCleaner_oneimage({"map_size":9,"seed":5,"N_agent":1,"partical_obs":3,"start_position":[[1,1]]})
+env = EnvCleaner_oneimage({"map_size":9,"seed":15,"N_agent":1,"partical_obs":3,"start_position":[[1,1]]})
 agent_id_pos = torch.zeros(env.N_agent,3)
 for i in range(env.N_agent):
     agent_id_pos[i] = torch.tensor([i,env.start_position[i%len(env.start_position)][0],
@@ -26,7 +26,7 @@ agent_id_pos = agent_id_pos.repeat(1,1).view(1,env.N_agent,3)
 agent = Agent(env)
 next_obs = torch.unsqueeze(torch.Tensor(env.reset()),dim=0)
 next_done = torch.zeros(1)
-agent.load_state_dict(torch.load("D:/00MYCODE/Project/Maze/env/cleaner/runs/ippo/single_/27000000_params.pth"))
+agent.load_state_dict(torch.load("D:/00MYCODE/Project/Maze/env/cleaner/runs/ippo/single_100/28000000_params.pth"))
 next_lstm_state = (
         torch.zeros(agent.lstm.num_layers, 1, agent.lstm.hidden_size),
         torch.zeros(agent.lstm.num_layers, 1, agent.lstm.hidden_size),)
