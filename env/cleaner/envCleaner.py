@@ -4,6 +4,7 @@ import random
 import cv2
 import gym
 import numpy as np
+import torch
 from gym import logger, spaces
 from gym.utils import seeding
 
@@ -265,18 +266,17 @@ class EnvCleaner_oneimage(gym.Env):
             map = globel_obs
         map = (map[:,:,0]*0.5+map[:,:,1]*0.3+map[:,:,2]*0.2).squeeze()
         obs = []
+        self.info["agent_info"] =[]
         for i in range(len(action_list)):
                 per_obs = map[self.agt_pos_list[i][0]-1:self.agt_pos_list[i][0]+2*self.partical_obs,self.agt_pos_list[i][1]-1:self.agt_pos_list[i][1]+2*self.partical_obs]
                 obs.append(per_obs)
-
+                self.info["agent_info"].append([i,self.agt_pos_list[i][0],self.agt_pos_list[i][1]])
         # Calculate done
         if 2 not in self.occupancy:
             done = True
-        info = {}
-        if done:
-            info = self.info
-        
-        return obs, total_reward, done, info
+
+
+        return obs, total_reward, done, self.info
 
     def get_global_obs(self):
         obs = np.zeros((self.map_size, self.map_size, 3))
@@ -304,10 +304,12 @@ class EnvCleaner_oneimage(gym.Env):
         start_position = self.start_position
         self.occupancy = self.generate_maze(self.seed)
         self.agt_pos_list = []
-        self.info = {"global_reward":0,"game_step": 0}
+        self.info = {"global_reward":0,"game_step": 0,"agent_info":torch.zeros([self.N_agent,3])}
         for i in range(self.N_agent):
             self.agt_pos_list.append(copy.deepcopy(start_position[i % len(start_position)]))
-        
+            self.occupancy[self.start_position[i][0],self.start_position[i][1]]=0
+            self.info["agent_info"][i] = torch.tensor([i,self.start_position[i%len(self.start_position)][0],self.start_position[i%len(self.start_position)][1]])
+            
         # get obs_0
         globel_obs = self.get_global_obs()
         if self.partical_obs != 1:

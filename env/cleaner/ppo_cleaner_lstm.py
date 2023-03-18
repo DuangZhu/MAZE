@@ -10,10 +10,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from envCleaner import EnvCleaner, EnvCleaner_onehot, EnvCleaner_oneimage
 from gym import logger, spaces
 from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
+
+from envCleaner import EnvCleaner, EnvCleaner_onehot, EnvCleaner_oneimage
 
 from stable_baselines3.common.atari_wrappers import (  # isort:skip
     ClipRewardEnv,
@@ -47,13 +48,13 @@ def parse_args():
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="BreakoutNoFrameskip-v4",
         help="the id of the environment")
-    parser.add_argument("--total-timesteps", type=int, default=10000100,
+    parser.add_argument("--total-timesteps", type=int, default=30000100,
         help="total timesteps of the experiments")
-    parser.add_argument("--learning-rate", type=float, default=2.5e-5,
+    parser.add_argument("--learning-rate", type=float, default=5e-4,
         help="the learning rate of the optimizer")
-    parser.add_argument("--num-envs", type=int, default=8,
+    parser.add_argument("--num-envs", type=int, default=24,
         help="the number of parallel game environments")
-    parser.add_argument("--num-steps", type=int, default=128,
+    parser.add_argument("--num-steps", type=int, default=200,
         help="the number of steps to run in each environment per policy rollout")
     parser.add_argument("--anneal-lr", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="Toggle learning rate annealing for policy and value networks")
@@ -85,9 +86,9 @@ def parse_args():
     # fmt: on
     return args
 
-def make_env(env_seed=0, capture_video=False): #创建环境，需要环境具有以下的属性：
+def make_env(env_seed=0, capture_video=False,start_position=[[1,1]]): #创建环境，需要环境具有以下的属性：
     def thunk():
-        env = EnvCleaner_oneimage({"map_size":9,"seed":env_seed,"N_agent":1,"partical_obs":3})
+        env = EnvCleaner_oneimage({"map_size":9,"seed":env_seed,"N_agent":1,"partical_obs":3, "start_position":start_position})
         env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
@@ -115,10 +116,10 @@ class Agent(nn.Module):
             layer_init(nn.Conv2d(64, 64, 3, padding=1)),
             nn.ReLU(),
             nn.Flatten(),
-            layer_init(nn.Linear(64 * 7 * 7, 512)),
+            layer_init(nn.Linear(64 * 7 * 7, 509)),
             nn.ReLU(),
         )
-        self.lstm = nn.LSTM(512, 128)
+        self.lstm = nn.LSTM(509+3, 128)
         for name, param in self.lstm.named_parameters():
             if "bias" in name:
                 nn.init.constant_(param, 0)
@@ -127,8 +128,11 @@ class Agent(nn.Module):
         self.actor = layer_init(nn.Linear(128, 5), std=0.01)
         self.critic = layer_init(nn.Linear(128, 1), std=1)
 
-    def get_states(self, x, lstm_state, done):
+    def get_states(self, x, lstm_state, done, agent_id_pos):
         hidden = self.network(x)
+        if agent_id_pos.shape[1]==1:
+            agent_id_pos = torch.squeeze(agent_id_pos,1)
+        hidden = torch.cat((agent_id_pos, hidden), dim=1)
         # LSTM logic
         batch_size = lstm_state[0].shape[1]
         hidden = hidden.reshape((-1, batch_size, self.lstm.input_size))
@@ -146,12 +150,12 @@ class Agent(nn.Module):
         new_hidden = torch.flatten(torch.cat(new_hidden), 0, 1)
         return new_hidden, lstm_state
 
-    def get_value(self, x, lstm_state, done):
-        hidden, _ = self.get_states(x, lstm_state, done)
+    def get_value(self, x, lstm_state, done, agent_id_pos=[]):
+        hidden, _ = self.get_states(x, lstm_state, done, agent_id_pos)
         return self.critic(hidden)
 
-    def get_action_and_value(self, x, lstm_state, done, action=None):
-        hidden, lstm_state = self.get_states(x, lstm_state, done)
+    def get_action_and_value(self, x, lstm_state, done, action=None, agent_id_pos=[]):
+        hidden, lstm_state = self.get_states(x, lstm_state, done, agent_id_pos)
         logits = self.actor(hidden)
         probs = Categorical(logits=logits)
         if action is None:
@@ -188,29 +192,35 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
     print(device)
-    env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3})
+    env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3, "start_position":[[1,1]]})
     
     # env setup
-    env_list = []
+    env_list = [1,2,3,4,5]
+    start_position=[[1,1]]
     if len(env_list)==0:
         envs = gym.vector.SyncVectorEnv(
-            [make_env() for i in range(args.num_envs)])
+            [make_env(start_position=start_position) for i in range(args.num_envs)])
     else:
         envs = gym.vector.SyncVectorEnv(
-            [make_env(env_seed=env_list[i%len(env_list)]) for i in range(args.num_envs)])
+            [make_env(env_seed=env_list[i%len(env_list)],start_position=start_position) for i in range(args.num_envs)])
         
     
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
     
     # ALGO Logic: Storage setup
-    obs = torch.zeros((args.num_steps, args.num_envs) + (1,env.partical_obs*2+1,env.partical_obs*2+1)).to(device)
+    obs = torch.zeros((args.num_steps, args.num_envs) + (env.N_agent,env.partical_obs*2+1,env.partical_obs*2+1)).to(device)
     actions = torch.zeros((args.num_steps, args.num_envs)).to(device)
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    
+    agent_id_poses = torch.zeros((args.num_steps, args.num_envs)+ (env.N_agent,3)).to(device)
+    agent_id_pos = torch.zeros(env.N_agent,3).to(device)
+    for i in range(env.N_agent):
+        agent_id_pos[i] = torch.tensor([i,start_position[i%len(start_position)][0],
+                                       start_position[i%len(start_position)][1]])
+    agent_id_pos = agent_id_pos.repeat(args.num_envs,1).view(args.num_envs,env.N_agent,3)    
     
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -239,7 +249,7 @@ if __name__ == "__main__":
                 torch.save(agent.state_dict(), './runs/'+run_name+'/'+str(global_step)+'_params.pth')
             # ALGO LOGIC: action logic
             with torch.no_grad():
-                action, logprob, _, value, next_lstm_state = agent.get_action_and_value(next_obs, next_lstm_state, next_done)
+                action, logprob, _, value, next_lstm_state = agent.get_action_and_value(next_obs, next_lstm_state, next_done, agent_id_pos=agent_id_pos)
                 values[step] = value.flatten()
             actions[step] = action
             logprobs[step] = logprob
@@ -248,14 +258,16 @@ if __name__ == "__main__":
             next_obs, reward, done, info = envs.step(action.cpu().numpy())
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
-
-            for item in info:
-                if "global_reward" in item.keys():
+            
+            
+            for i in range(len(info)):
+                item = info[i]
+                agent_id_pos[i] = torch.Tensor(info[i]["agent_info"])
+                if done[i]:
                     print(f"global_step={global_step}, episodic_return={item['global_reward']}")
                     print(f"global_step={global_step}, game_step={item['game_step']}")
                     writer.add_scalar("charts/episodic_return", item["global_reward"], global_step)
-                    # writer.add_scalar("charts/episodic_length", item["episode"]["l"], global_step)
-                    break
+            agent_id_poses[step] = agent_id_pos
 
         # bootstrap value if not done
         with torch.no_grad():
@@ -263,6 +275,7 @@ if __name__ == "__main__":
                 next_obs,
                 next_lstm_state,
                 next_done,
+                agent_id_pos=agent_id_pos
             ).reshape(1, -1)
             advantages = torch.zeros_like(rewards).to(device)
             lastgaelam = 0
@@ -285,6 +298,7 @@ if __name__ == "__main__":
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         b_values = values.reshape(-1)
+        b_agent_id_poses = agent_id_poses.reshape((-1,) + (1,3))
         
         # Optimizing the policy and value network
         assert args.num_envs % args.num_minibatches == 0
@@ -304,6 +318,7 @@ if __name__ == "__main__":
                     (initial_lstm_state[0][:, mbenvinds], initial_lstm_state[1][:, mbenvinds]),
                     b_dones[mb_inds],
                     b_actions.long()[mb_inds],
+                    b_agent_id_poses[mb_inds]
                 )
                 logratio = newlogprob - b_logprobs[mb_inds]
                 ratio = logratio.exp()
@@ -370,8 +385,4 @@ if __name__ == "__main__":
     envs.close()
     writer.close()
     
-
-
-# # 加载模型参数
-# net.load_state_dict(torch.load('params.pth'))
 

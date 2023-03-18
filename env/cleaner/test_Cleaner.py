@@ -5,7 +5,7 @@ from envCleaner import EnvCleaner, EnvCleaner_onehot, EnvCleaner_oneimage
 from stable_baselines3.common.env_checker import check_env
 
 if __name__ == '__main__':
-    env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3})
+    env = EnvCleaner_oneimage({"map_size":9,"seed":0,"N_agent":1,"partical_obs":3,"start_position":[[1,1]]})
     #check_env(env)
     
     max_iter = 500
