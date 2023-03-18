@@ -9,7 +9,7 @@ from gym import logger, spaces
 from gym.utils import seeding
 
 import maze
-import tensorboard
+
 
 class EnvCleaner_onehot(gym.Env):
     metadata = {'render.modes': ['human']}

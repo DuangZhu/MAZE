@@ -10,11 +10,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from envCleaner import EnvCleaner, EnvCleaner_onehot, EnvCleaner_oneimage
 from gym import logger, spaces
 from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
-
-from envCleaner import EnvCleaner, EnvCleaner_onehot, EnvCleaner_oneimage
 
 from stable_baselines3.common.atari_wrappers import (  # isort:skip
     ClipRewardEnv,
